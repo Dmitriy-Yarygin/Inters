@@ -47,22 +47,50 @@ function f3() {
 }
 
 function f4() {  
+  var commonS=0;
+  var polygon=polygonA.slice();
+  var normalVector, skalyr;
   // триангуляция polygonA
-  // находим вектор А0-А2 , проверяем его скаляр с нормалью для А0А1 - если отрицательное значение - берем следующую точку и вектор 
+  var cutedLength = polygon.length;
+  if (cutedLength<3) return 0;
   
+  var pointA = polygon[0];
+  var pointB = fNextVertex(pointA);
+  var pointC = fNextVertex(pointB);
+  var vector1 = fVectorFromPoints(pointA, pointB);
+  var vector2 = fVectorFromPoints(pointA, pointC);   
+  normalVector = fNormalVectorFromVector(vector1);
+  skalyr = fSkalyr(normalVector,vector2);
+  // находим вектор AC , проверяем его скаляр с нормалью для AB - если отрицательное значение - берем следующую точку и вектор 
   
+  while (cutedLength>3) {   // ходим кругами, пока кол-во вершин в терзаемом многоугольнике не уменьшится до 3х
+      if (skalyr<0) { // скалярное произведение векторов vector2 и normalVector (от vector1)  отрицательное - значит угол между ними ( vector2 и normalVector ) тупой и векторы ( vector2 и normalVector ) смотрят в разные стороны, т.e. треугольник снаружи многоугольника и отрезать его для просчета площади нет смысла (по крайней мере со знаком +, а с минусом потом будет много заморочек)
+        alert(' треугольник с вершинами '+pointA.title+', '+pointB.title+', '+pointC.title+' - внешний');
+        pointA = pointB;
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // кидаем луч из А0 по вектору А0-А2, считаем пересечения со сторонами, если пересечения есть берем следующую точку и вектор
-  
   // если пересечений нет - отрезаем треугольник от polygon, а его площадь - в копилку
-  
-  // ходим кругами, пока кол-во вершин в терзаемом многоугольнике не уменьшится до 3х
-  
-  
-  // определение площади треугольника
-  var vector1 = fVectorFromPoints(polygonA[0],polygonA[1]);
-  var vector2 = fVectorFromPoints(polygonA[0],polygonA[2]);  
-  var SSS = fSofTriangle(vector1,vector2);
-  alert('Площадь треугольника='+ SSS );
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      } else if (skalyr==0) { // отсекаем от polygon плоский (S==0) треугольник с вершинами ABC  // значит одна сторона многоугольника переходит в другую на одной прямой и получается не треугольник, а линия или треугольник площадью = 0.
+          alert(' отсекаем от polygon плоский (S==0) треугольник с вершинами '+pointA.title+', '+pointB.title+', '+pointC.title);
+          fCutTriangle(pointA, pointB, pointC); fGrafPrint(polygon, 2);
+          cutedLength--
+      } else {
+          alert(' отсекаем от polygon треугольник с вершинами '+pointA.title+', '+pointB.title+', '+pointC.title+' , площадь аккумулируем');
+          commonS+= fSTriangle(vector1,vector2);
+          fCutTriangle(pointA, pointB, pointC);
+          cutedLength--
+      }
+      pointB = pointC;
+      pointC = fNextVertex(pointC);
+      vector1 = fVectorFromPoints(pointA, pointB);
+      vector2 = fVectorFromPoints(pointA, pointC);   
+      normalVector = fNormalVectorFromVector(vector1);
+      skalyr = fSkalyr(normalVector,vector2);
+ //     alert(pointA.title+'-'+pointB.title+'-'+pointC.title);
+  }   //  while (cutedLength>3) 
+  commonS+= fSTriangle(vector1,vector2);
+  alert('S='+commonS);  
 }
 
 // Определяет положение некой точки по отношению к многоугольнику (внутри или снаружи)
@@ -346,14 +374,16 @@ function fOpredelitel(vector1,vector2){
 }
 
 
-function fSofTriangle(vector1,vector2){
+function fSTriangle(vector1,vector2){
 // определяет площадь произвольного треугольника
-    var skalyr = vector1.p1*vector2.p1+vector1.p2*vector2.p2;
     var len1 = Math.sqrt( ( Math.pow( vector1.p1, 2) ) + ( Math.pow( vector1.p2, 2) ) );
     var len2 = Math.sqrt( ( Math.pow( vector2.p1, 2) ) + ( Math.pow( vector2.p2, 2) ) );
-    var alpha = Math.acos( skalyr / (len1*len2) );
-    var Striangle = ( len1 * len2 * Math.sin(alpha) )/2 ;
-    return Striangle;
+    var alpha = Math.acos( fSkalyr(vector1,vector2) / (len1*len2) );
+    return ( ( len1 * len2 * Math.sin(alpha) ) /2 ) ;
+}
+
+function fSkalyr(vector1,vector2){
+  return vector1.p1*vector2.p1+vector1.p2*vector2.p2;
 }
 
 function fIsVertex(mousePoint){
@@ -475,7 +505,7 @@ document.onclick = function(event) {
    
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 // Блок преобразований массивов и графов
-// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>   
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  
 
 function fGrafPrev(currentPoint, dir){
   if (currentPoint.title[0] == 'I') return currentPoint.direction[dir].prev;
@@ -486,7 +516,22 @@ function fGrafNext(currentPoint, dir){
   if (currentPoint.title[0] == 'I') return currentPoint.direction[dir].next;
     else return currentPoint.next;
 }
+ 
+function fNextVertex(vertex){          //fGrafNext(currentPoint, dir){
+  var dir=0;
+  if (vertex.title[0] == 'B') dir=1;
+  vertex=vertex.next;
+  do {
+    if (vertex.title[0] == 'I') vertex=vertex.direction[dir].next;
+  } while (vertex.title[0] == 'I');
+  return vertex;
+}  
 
+function fCutTriangle(pointA, pointB, pointC){
+  pointA.next=pointC;
+  pointC.prev=pointA;
+}
+  
 function fGraf(dir){
   var index, element, prevNeighbor, nextNeighbor;
   var i, j, s, filtr, filteredInters;
