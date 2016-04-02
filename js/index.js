@@ -25,28 +25,11 @@ function f1() {
   if (isPointInsidePolygon(polygonB[0],polygonA)) {alert('B0 внутри A')} else {alert('B0 снаружи A')};
 }
 
-function f2() {  
-  fSameDirection() 
-}
-
-function f3() {  
-  var str=prompt('Введите начальную точку и вектор луча ','0, 50, -50');
-  var arr = str.split(', ');
-  var i=0; 
-  var vector = {p1: arr[1]*1, p2: arr[2]*1}; 
-  var linePoints=[];
-  var centralPoint = polygonA[arr[0]*1];
-  linePoints.push(centralPoint);  
-  var nextPoint={x: centralPoint.x+vector.p1, y: centralPoint.y+vector.p2}
-  linePoints.push(nextPoint); 
-  fDrawLine ( linePoints , document.querySelector('svg.base') );
-  fRay(centralPoint, vector, polygonA, true, 0);  
-}
-
 function f4() {  
   alert('Площадь А равна '+fpolygonS(polygonA.slice(), true) );
   alert('Площадь В равна '+fpolygonS(polygonB.slice(), true) );  
 }
+
 
 function fpolygonS(polygon, drawFlag) {// разрезает многоугольник на треугольники и вычисляет площадь первоначального многоугольника
 // триангуляция polygon для подсчета общей площади. Внимание! Имеет значение направление обхода - должно быть по часовой стрелке
@@ -170,12 +153,14 @@ function fSameDirection() {   // Направления обхода должн�
   } 
   // теперь надо перестроить таблицы, переподписать вершины   //   alert('перерисовываем изменения ');
   if ((Adirection==-1) || ( Bdirection==-1)) {
-    fTablesDelete();
+    fTablesDelete(0);
     fTables();
   } 
   fClearSVG(polygonA.length+polygonB.length+2, svgElem)      // удаляем старые точки пересечения 
   fSignPoligons(); // подписываем вершины многоугольников: A0-А1-A2-A3.... B0-B1-B2-B3.....
   fPointsOfIntersection(polygonA,polygonB,true);        // запускаем поиск точек пересечений
+  fTablesDelete(2);
+  fCreateResultTables();
 }
 
 // Определяем направление обхода многоугольника - по или против часовой стрелки
@@ -455,7 +440,7 @@ function fCenterPoint(data){
 }
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-// Блок ввода массива точек многоугольников мышкой, перемещение вершин мышкой и обработка нажатия Delete 
+//                  Обработка событий 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
   
 document.onkeydown = function checkKeycode(event){   // Input для массива точек 2х многоугольников.
@@ -486,7 +471,7 @@ document.onkeydown = function checkKeycode(event){   // Input для масси�
       polygonA.length=0; // очищаем массив точек многоугольника А  
       polygonB.length=0; // очищаем массив точек многоугольника В 
       count=0;
-      fTablesDelete();
+      fTablesDelete(0);
     }
 }
 
@@ -544,7 +529,29 @@ document.onclick = function(event) {
       console.log('index='+ index);
     }  
 }
-   
+
+document.onchange = function(event) {    
+  // находим, в какой таблице и в какой ячейке произошло изменение
+  var index = fTableToArray(document.getElementsByTagName('table')[0], polygonA);
+  if (index > -1) {  // перерисовываем  многоугольник А и кружок на index-ой его вершине
+    fReDrawPath(svgElem.children[polygonA.length], polygonA);  
+    svgElem.children[index].setAttribute('cx', polygonA[index].x);
+    svgElem.children[index].setAttribute('cy', polygonA[index].y);  
+
+  }
+  else {
+    index = fTableToArray(document.getElementsByTagName('table')[1], polygonB);
+    if (index > -1) { // перерисовываем  многоугольник B и кружок на index-ой его вершине
+      polygonB[index].x= Math.floor(polygonB[index].x)+0.01;
+      polygonB[index].y= Math.floor(polygonB[index].y)+0.01;
+      fReDrawPath( svgElem.children[polygonA.length+polygonB.length+1], polygonB);
+      svgElem.children[polygonA.length+index+1].setAttribute('cx', polygonB[index].x);
+      svgElem.children[polygonA.length+index+1].setAttribute('cy', polygonB[index].y);   
+    }
+  }
+  fSameDirection();
+}  
+
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 // Блок преобразований массивов и графов
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  
@@ -643,9 +650,10 @@ function fGrafPrint(graf, printer){   //////////////////////////  вспомог
 } // end of function fGrafPrint(graf, printer)
 
 function fAddPrevNext(someArray, code){
-  var name='A';
+  var name='';
   var len  =someArray.length;
   if (len<1) return;
+  if (code==0) {name='A'};
   if (code==1) {name='B'};
   someArray[0].title = name+'0';
   someArray[0].prev =  someArray[len-1];
@@ -666,26 +674,31 @@ function fAddPrevNext(someArray, code){
 // Блок работы с таблицами
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>    
 
-document.onchange = function(event) {    
-  // находим, в какой таблице и в какой ячейке произошло изменение
-  var index = fTableToArray(document.getElementsByTagName('table')[0], polygonA);
-  if (index > -1) {  // перерисовываем  многоугольник А и кружок на index-ой его вершине
-    fReDrawPath(svgElem.children[polygonA.length], polygonA);  
-    svgElem.children[index].setAttribute('cx', polygonA[index].x);
-    svgElem.children[index].setAttribute('cy', polygonA[index].y);    
-  }
-  else {
-    index = fTableToArray(document.getElementsByTagName('table')[1], polygonB);
-    if (index > -1) { // перерисовываем  многоугольник B и кружок на index-ой его вершине
-      polygonB[index].x= Math.floor(polygonB[index].x)+0.01;
-      polygonB[index].y= Math.floor(polygonB[index].y)+0.01;
-      fReDrawPath( svgElem.children[polygonA.length+polygonB.length+1], polygonB);
-      svgElem.children[polygonA.length+index+1].setAttribute('cx', polygonB[index].x);
-      svgElem.children[polygonA.length+index+1].setAttribute('cy', polygonB[index].y);   
+function fCreateResultTables(){
+  // по результрующему массиву RESULT строит таблицы
+  var tablesQuantity = RESULT.length;
+  var tableName='',s;
+  if (tablesQuantity) {
+    for (var i=0; i<tablesQuantity; i++) {
+      fAddPrevNext(RESULT[i], 13);
+      s=Math.round( fpolygonS(RESULT[i].slice(), true) );
+      tableName = 'Фигура'+(i+1)+' площадью '+ s;
+      fCreateResTable(RESULT[i], tableName);
     }
   }
-  fSameDirection();
-}  
+}
+
+function fCreateResTable(polygon,name){
+  var table = document.createElement('table');
+  table.appendChild(document.createElement('tr'));
+  fthCreate(table, name);
+  for (var i=0; i<polygon.length; i++) {
+    var ob=document.createElement('tr');
+    table.appendChild(ob);
+    ob.innerHTML = 'Вершина'+i+' ( '+( Math.round(polygon[i].x*10)/10 )+' ; '+(Math.round(polygon[i].y*10)/10 )+' )' ;
+  }
+  document.body.appendChild(table);
+}
 
 // Переносит первое отличающееся значение координат точек из ячеек таблицы table в массив polygon 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -746,10 +759,16 @@ function ftdCreate(table, value){
       obIN.value = Math.round(value);
 }      
 
-function fTablesDelete(){
-  // удаляем 2 таблицы
-  document.body.removeChild(document.getElementsByTagName('table')[0]);
-  document.body.removeChild(document.getElementsByTagName('table')[0]);
+function fTablesDelete(upTables){
+// удаляем все таблицы после upTables
+  if (document.getElementsByTagName('table').length) {
+    // if (!(confirm('Удалить таблицы?') )) return;
+    for (var i=document.getElementsByTagName('table').length; i>upTables; i--)  { 
+      document.body.removeChild(document.getElementsByTagName('table')[i-1]);
+    }      
+  }  
+
+
 }
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
