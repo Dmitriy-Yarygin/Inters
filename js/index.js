@@ -47,40 +47,82 @@ function f3() {
 }
 
 function f4() {  
-  var commonS=0;
+  var currentVertex, nextVertex, exitPointTitle;
+  var exitFlag, drawFlag=true;
+// триангуляция polygon для подсчета общей площади. Внимание! Имеет значение направление обхода - должно быть по часовой стрелке
   var polygon=polygonA.slice();
-  var normalVector, skalyr;
-  // триангуляция polygonA
   var cutedLength = polygon.length;
   if (cutedLength<3) return 0;
-  
+  var polygonDirection = fDirection(polygon, false); 
+  if (polygonDirection==-1) {alert('Не могу посчитать площадь многоугольника при обходе против часовой'); return -10000}
+  var commonS=0;
   var pointA = polygon[0];
   var pointB = fNextVertex(pointA);
   var pointC = fNextVertex(pointB);
   var vector1 = fVectorFromPoints(pointA, pointB);
   var vector2 = fVectorFromPoints(pointA, pointC);   
-  normalVector = fNormalVectorFromVector(vector1);
-  skalyr = fSkalyr(normalVector,vector2);
-  // находим вектор AC , проверяем его скаляр с нормалью для AB - если отрицательное значение - берем следующую точку и вектор 
-  
+  var vector = fNormalVectorFromVector(vector1);
+  var skalyr = fSkalyr(vector,vector2);
+  // находим вектор AC , проверяем его скаляр с ПРАВОЙ нормалью для AB - если отрицательное значение при обходе по часовой стрелке (направление +1) - берем следующую точку и вектор 
   while (cutedLength>3) {   // ходим кругами, пока кол-во вершин в терзаемом многоугольнике не уменьшится до 3х
-      if (skalyr<0) { // скалярное произведение векторов vector2 и normalVector (от vector1)  отрицательное - значит угол между ними ( vector2 и normalVector ) тупой и векторы ( vector2 и normalVector ) смотрят в разные стороны, т.e. треугольник снаружи многоугольника и отрезать его для просчета площади нет смысла (по крайней мере со знаком +, а с минусом потом будет много заморочек)
+//--------------------------------------------------------------------------------------------------------------------
+      if (skalyr<0) { // скалярное произведение векторов vector2 и normalVector (от vector1)  отрицательное при обходе по часовой стрелке (направление +1) - значит угол между ними ( vector2 и normalVector ) тупой и векторы ( vector2 и normalVector ) смотрят в разные стороны, т.e. треугольник снаружи многоугольника и отрезать его для просчета площади нет смысла (по крайней мере со знаком +, а с минусом потом будет много заморочек)
         alert(' треугольник с вершинами '+pointA.title+', '+pointB.title+', '+pointC.title+' - внешний');
         pointA = pointB;
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  // кидаем луч из А0 по вектору А0-А2, считаем пересечения со сторонами, если пересечения есть берем следующую точку и вектор
-  // если пересечений нет - отрезаем треугольник от polygon, а его площадь - в копилку
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//--------------------------------------------------------------------------------------------------------------------    
       } else if (skalyr==0) { // отсекаем от polygon плоский (S==0) треугольник с вершинами ABC  // значит одна сторона многоугольника переходит в другую на одной прямой и получается не треугольник, а линия или треугольник площадью = 0.
           alert(' отсекаем от polygon плоский (S==0) треугольник с вершинами '+pointA.title+', '+pointB.title+', '+pointC.title);
-          fCutTriangle(pointA, pointB, pointC); fGrafPrint(polygon, 2);
-          cutedLength--
-      } else {
-          alert(' отсекаем от polygon треугольник с вершинами '+pointA.title+', '+pointB.title+', '+pointC.title+' , площадь аккумулируем');
-          commonS+= fSTriangle(vector1,vector2);
-          fCutTriangle(pointA, pointB, pointC);
-          cutedLength--
-      }
+          fCutTriangle(pointA, pointB, pointC); 
+          fGrafPrint(polygon, 2);
+          cutedLength--      
+//--------------------------------------------------------------------------------------------------------------------
+      } else { // skalyr>0
+          alert(' Скалярное произведение больше 0. Треугольник с вершинами '+pointA.title+', '+pointB.title+', '+pointC.title);
+          exitFlag=false; 
+//************  пока остается 5 или более вершин имеет смысл проверять пересечение AC со сторонами многоугольника, не прилегающим к ABC **********
+          if (cutedLength>4) {
+              currentVertex = fNextVertex(pointC);
+              nextVertex = fNextVertex(currentVertex);
+              do { 
+                if (fSegmentsIntersection(pointA, pointC, currentVertex, nextVertex)) { 
+                  exitFlag=true; 
+                  alert('Отрезок '+pointA.title+'-'+pointC.title+' пересекся c '+currentVertex.title+'-'+nextVertex.title+'. exitFlag='+exitFlag);
+                }
+                currentVertex=fNextVertex(currentVertex);
+                nextVertex=fNextVertex(nextVertex);
+                if (!(confirm('Если nexVer='+nextVertex.title+'не совпадает с'+pointA.title+', в след. цикле проверим пересекаются ли '+pointA.title+'-'+pointC.title+' c '+currentVertex.title+'-'+nextVertex.title) )) return;
+
+              } while ( !(nextVertex.title==pointA.title) && !(exitFlag) ); 
+          }  
+//***********  еще надо убедиться, что внутрь отрезаемого треугольника не попала ни одна из остающихся вершин (кроме ABC и отрезанных) ************
+          if (exitFlag) { if (!(confirm('Выполнять проверку попадания вершин в отсекаемый треугольник?') ) ) return;}  // если предыдущая проверка пересечений со сторонами уже показала пересечения, то пропускаем блок проверки попадания вершин в отсекаемый треугольник
+            else { //блок проверки попадания вершин в отсекаемый треугольник
+                nextVertex = fNextVertex(pointC);
+                if (cutedLength==4) exitPointTitle = pointA.title
+                  else exitPointTitle = fPrevVertex(pointA).title
+                do { // кидаем из nextVertex любой луч и сотрим наличие пересечений с ABC 
+                  fRay({x: nextVertex.x+0.000001, y: nextVertex.y+0.000001}, {p1: 100, p2: 100},  [pointA, pointB, pointC], true, 0); // здесь вектор может быть любой, (100,100) взят произвольно, а 0,000001 добавлено, чтоб исключить точное прохождение луча через вершины
+                  if (intersectionPointsCount>0) {
+                    exitFlag=true; 
+                    alert('Вершина '+nextVertex.title+' попала внутрь отсекаемого треугольника '+pointA.title+'-'+pointB.title+'-'+pointC.title+'. В результате - exitFlag='+exitFlag);
+                  }  
+                  nextVertex = fNextVertex(nextVertex);
+                  if (!(confirm('Если nexVer='+nextVertex.title+'не совпадает с'+exitPointTitle+' в след. цикле проверим не попадает ли nexVer в отсекаемый треугольник '+pointA.title+'-'+pointB.title+'-'+pointC.title) )) return;
+
+                } while ( !(nextVertex.title==exitPointTitle) && !(exitFlag) ); 
+          }    
+//*************************************************************************************************************************************
+          if (exitFlag) {pointA = pointB;} // флаг после проверок  АС на пересечения со сторонами многоугольника и попаданий вершин внутрь ABC
+            else { // если пересечений нет и вершин в отрезаемом треугольнике нет - отрезаем треугольник от polygon, а его площадь - в копилку
+                alert(' отсекаем от polygon треугольник с вершинами '+pointA.title+', '+pointB.title+', '+pointC.title+' , площадь аккумулируем');
+                commonS+= fSTriangle(vector1,vector2);
+                if (drawFlag) fDrawLine ( [pointA, pointC] , document.querySelector('svg.base') );
+                fCutTriangle(pointA, pointB, pointC); fGrafPrint(polygon, 2);
+                fGrafPrint(polygon, 2);
+                cutedLength--
+            }
+      } // else { // skalyr>0      end of  if (skalyr<0)
+//--------------------------------------------------------------------------------------------------------------------
       pointB = pointC;
       pointC = fNextVertex(pointC);
       vector1 = fVectorFromPoints(pointA, pointB);
@@ -89,22 +131,24 @@ function f4() {
       skalyr = fSkalyr(normalVector,vector2);
  //     alert(pointA.title+'-'+pointB.title+'-'+pointC.title);
   }   //  while (cutedLength>3) 
+//--------------------------------------------------------------------------------------------------------------------
+  alert('Предварительно S='+commonS);  
   commonS+= fSTriangle(vector1,vector2);
   alert('S='+commonS);  
 }
 
-// Определяет положение некой точки по отношению к многоугольнику (внутри или снаружи)
+// Определяет положение точки одного многоугольника по отношению к другому многоугольнику (внутри или снаружи)
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-function isPointInsidePolygon(point,polygon){
+function isPointInsidePolygon(point,polygon){ // ВАЖНО! Точка point не должна принадлежать polygon - функция даст неверный ответ, т.к. луч кидается по стороне многоугольника, которму принадлежит point к point.next, а используемая внутри функция fRay учитывает параметр 0<t2<=1 ( t2=1 учитывается, а t2=0 нет)
   // чтобы определить находится точка А0 внутри или снаружи относительно В
   // кидаем луч из точки и считам пересечения с другим многоугольником
-  var vector = fVectorFromPoints( point, point.next);  
+  var vector = fVectorFromPoints( point, fNextVertex(point) );  /*
   var  linePoints, nextPoint; 
   linePoints=[];
   linePoints.push(point);  
   nextPoint={x: point.x+vector.p1, y: point.y+vector.p2}
   linePoints.push(nextPoint); 
-  fDrawLine ( linePoints , document.querySelector('svg.base') );
+  fDrawLine ( linePoints , document.querySelector('svg.base') );  */
   fRay(point, vector, polygon, true, 0);
   if ((intersectionPointsCount) % 2 == 0) return false // 
   return true
@@ -112,25 +156,25 @@ function isPointInsidePolygon(point,polygon){
 
 //  Направление обхода 2х многоугольников отличаются => меняем для меньшего многоугольника
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-function fSameDirection() {  
+function fSameDirection() {   // Направления обхода должно быть по часовой
   if ((polygonA.length<3) || (polygonB.length<3)) return;
   fAddPrevNext(polygonA, 0);
   fAddPrevNext(polygonB, 1);
-  var Adirection=fDirection(polygonA);
-  var Bdirection=fDirection(polygonB);
-  if (!(Adirection == Bdirection)) {   // Направления обхода не совпадают => меняем для меньшего многоугольника
-    console.log('Направления обхода А '+Adirection+' В '+ Bdirection);
-    var i, tempArray=[];
-    if (polygonA.length>polygonB.length) { // меняем направление для В
-        for (i=polygonB.length; i>1; i--) tempArray.push(polygonB.pop());
-        polygonB=polygonB.concat(tempArray);
-        fAddPrevNext(polygonB, 1);
-    } else {  // меняем направление для A
+  var i, tempArray=[];
+  var Adirection=fDirection(polygonA, false);
+  if (Adirection==-1) {  // меняем направление для A
         for (i=polygonA.length; i>1; i--)  tempArray.push(polygonA.pop());
         polygonA=polygonA.concat(tempArray);
         fAddPrevNext(polygonA, 0);
-    }  
-    // теперь надо перестроить таблицы, переподписать вершины   //   alert('перерисовываем изменения ');
+  }  
+  var Bdirection=fDirection(polygonB, false);
+  if (Bdirection==-1) {   // меняем направление для В
+        for (i=polygonB.length; i>1; i--) tempArray.push(polygonB.pop());
+        polygonB=polygonB.concat(tempArray);
+        fAddPrevNext(polygonB, 1);
+  } 
+  // теперь надо перестроить таблицы, переподписать вершины   //   alert('перерисовываем изменения ');
+  if ((Adirection==-1) || ( Bdirection==-1)) {
     fTablesDelete();
     fTables();
   } 
@@ -141,7 +185,7 @@ function fSameDirection() {
 
 // Определяем направление обхода многоугольника - по или против часовой стрелки
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-function fDirection(polygon){
+function fDirection(polygon, drawFlag){
 // Находим правый вектор. Если он, исходя из точки в середине стороны многоугольника, пересекает многоугольник четное кол-во раз - значит обход многоугольника осуществляется против часовой
   if (polygon.length<3) {alert('Невозможно определить направление обхода для фигуры мене чем с 3 вершинами');return}
   var normalVector = fNormalVectorFromVector( fVectorFromPoints( polygon[0], polygon[1]) );  
@@ -151,11 +195,11 @@ function fDirection(polygon){
   var nextPoint={x: centralPoint.x+normalVector.p1, y: centralPoint.y+normalVector.p2}
   linePoints.push(nextPoint); 
   fDrawLine ( linePoints , document.querySelector('svg.base') );
-  fRay(centralPoint, normalVector, polygon, true, 0.0005);  
+  fRay(centralPoint, normalVector, polygon, drawFlag, 0.0005);  
   if ((intersectionPointsCount) % 2 == 0) {
- //   alert('Направление обхода многоугольника '+polygon[0].title[0]+' против часовой стрелки');  
+    if (drawFlag) alert('Направление обхода многоугольника '+polygon[0].title[0]+' против часовой стрелки');  
     return -1 }
- // alert('Направление обхода многоугольника '+polygon[0].title[0]+' по часовой стрелке'); 
+  if (drawFlag) alert('Направление обхода многоугольника '+polygon[0].title[0]+' по часовой стрелке'); 
   return +1
 }
 
@@ -164,7 +208,8 @@ function fDirection(polygon){
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 function fRay(Point, Vector, polygon, drawIntersectionsFlag, tolerance){
-// ниже идет перебор сторон многоугольника А для поиска точек пересечений с сторонами многоугольника В 
+  alert('Внутри fRay. Переданы точка ('+Point.x+';'+Point.y+' ) '+' вектор ('+Vector.p1+';'+Vector.p2+' drawIntersectionsFlag= '+drawIntersectionsFlag+' tolerance='+tolerance);
+// ниже идет перебор сторон многоугольника polygon для поиска точек пересечений с лучом из Point по Vector
  var nextVertex; 
  intersectionPointsCount = 0; 
  if  ((count!==-1) || (polygon.length<3)) return; // если фигуры не введены или представлены точками <3 - на выход
@@ -190,6 +235,9 @@ function fRayIntersection(Point, vector1, pointC, pointD, tolerance){
     // если прямые пересекаются, а параметр t1<0, а t2 выходит за рамки [0;1] - луч и отрезок не пересекаются      
     if ( (!(tParametr>tolerance)) || (!(t2Parametr>0)) || (t2Parametr>1))  return false; 
     // если прямые пересекаются и параметры t1 или t2 в пределах (0;1) - вычисляем точку пересечения отрезков  
+    
+    if (!(confirm('Пересекаются луч из'+Point.title+'по вектору {'+vector1.p1+':'+vector1.p2+'} и '+pointC.title+pointD.title+' Параметр t1='+tParametr+' , t2='+t2Parametr+'. Продолжить?') )) return;
+    
     intersectionPoint.x = vector1.p1 * tParametr + Point.x;
     intersectionPoint.y = vector1.p2 * tParametr + Point.y; 
     return true;
@@ -373,7 +421,6 @@ function fOpredelitel(vector1,vector2){
   return vector1.p1*vector2.p2-vector1.p2*vector2.p1;
 }
 
-
 function fSTriangle(vector1,vector2){
 // определяет площадь произвольного треугольника
     var len1 = Math.sqrt( ( Math.pow( vector1.p1, 2) ) + ( Math.pow( vector1.p2, 2) ) );
@@ -516,8 +563,18 @@ function fGrafNext(currentPoint, dir){
   if (currentPoint.title[0] == 'I') return currentPoint.direction[dir].next;
     else return currentPoint.next;
 }
- 
-function fNextVertex(vertex){          //fGrafNext(currentPoint, dir){
+
+function fPrevVertex(vertex){         
+  var dir=0;
+  if (vertex.title[0] == 'B') dir=1;
+  vertex=vertex.prev;
+  do {
+    if (vertex.title[0] == 'I') vertex=vertex.direction[dir].prev;
+  } while (vertex.title[0] == 'I');
+  return vertex;
+}   
+
+function fNextVertex(vertex){         
   var dir=0;
   if (vertex.title[0] == 'B') dir=1;
   vertex=vertex.next;
