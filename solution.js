@@ -1,7 +1,7 @@
 var mousePoint= {x: 0, y: 0}
 var intersectionPoint= {x: 0, y: 0}
 var intersectionPointsCount = 0;
-var polygonA=[], polygonB=[], RESULT=[]; RESULT2=[];
+var polygonA=[], polygonB=[], RESULT=[];
 var intersA=[];
 var count = 0; // определяет введены ли вершины многоугольников ( -1 значит введены оба многоугольника А и В; 0 - вводится А; 1 - А введен, вводим В)
 var resTablesCreatedFlag = false;
@@ -36,7 +36,6 @@ function intersects(fig1, fig2) {
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 //  Cоздаем дополнительные элементы HTML 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-	
   fHeadCreate('h3','Вычисляем многоугольники, полученные в результате пересечения входных многоугольников А и В');
   var printer1 = document.createElement('p');
   printer1.innerHTML = '<em> Многоугольники А и В <b>не должны</b> иметь самопересечений! </em>';
@@ -61,7 +60,7 @@ function fpolygonS(polygon, drawFlag) {// разрезает многоугол�
   var cutedLength = polygon.length;
   if (cutedLength<3) return 0;
   var polygonDirection = fDirection(polygon, false); 
-  if (polygonDirection==-1) {alert('Не могу посчитать площадь многоугольника при обходе против часовой'); return -10000}
+  if (polygonDirection==-1) {alert('Нет возможности посчитать площадь многоугольника при обходе против часовой'); return -10000}
   var currentVertex, nextVertex, exitPointTitle;
   var exitFlag;
   var commonS=0;
@@ -185,6 +184,7 @@ function fSameDirection() {   // Направления обхода должн�
   fClearSVG(polygonA.length+polygonB.length+2, svgElem)      // удаляем старые точки пересечения 
   fSignPoligons(); // подписываем вершины многоугольников: A0-А1-A2-A3.... B0-B1-B2-B3.....
   fPointsOfIntersection(polygonA,polygonB,true);        // запускаем поиск точек пересечений
+  fPolygonsOfIntersection();                    // запускаем поиск фигур пересечений
   if (resTablesCreatedFlag) { fTablesDelete(2); }		
   fCreateResultTables();
 }
@@ -252,7 +252,7 @@ function fRayIntersection(Point, vector1, pointC, pointD, tolerance){
 }  
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-// Блок нахождения пересечений сторон многоугольников
+// Блок нахождения пересечений сторон многоугольников и самих многоугольников
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 function fPointsOfIntersection(arrayA,arrayB,drawIntersectionsFlag){
@@ -280,25 +280,52 @@ function fPointsOfIntersection(arrayA,arrayB,drawIntersectionsFlag){
   } 
   console.log('Найдено '+intersectionPointsCount+' точек пересечений ');
   intersA.forEach(  function(vertex, i) {fDrawText(svgElem, {x: vertex.x , y: vertex.y }, 'I'+i); }  );
-  // теперь можем перестроить массивы многоугольников в графы   
+}
+
+function fPolygonsOfIntersection(){ // Поиск многоугольников пересечений  
+  // Перестроим массивы многоугольников и точек их пересечения в графы   
   fGraf(0); 
   fGraf(1);
   // теперь будем ходить по графу и искать многоугольники-пересечения
   // начинаем с определения положения т.А0 относительно многоугольника В
-  if (isPointInsidePolygon(polygonA[0],polygonB)) {
-  //  alert('А0 внутри В');
-    fAlgoritmInside(); 
-  } 
-  else {
- //   alert('А0 снаружи В');
-    fAlgoritmOutside(polygonA[0]);
-  }
+  if (isPointInsidePolygon(polygonA[0],polygonB)) { //  alert('А0 внутри В');
+    fAlgoritmInside(); } 
+  else { //   alert('А0 снаружи В');
+    fAlgoritmOutside(polygonA[0]); }
+  // ---------------   здесь (если многоугольники пересекаются) уже имеем заполненный массив RESULT    -------------------------
+  if (RESULT.length>0) { 
+    // надо еще проверить и исключить если есть совпадающие(сливающиеся) вершины результирующих многоугольников
+    // а также исключить фигуры с площадью менее 0,0001
+    var r=0.000009, x1,x2,y1,y2;  
+    var stest='';
+    var i=0, j;
+    while (i<RESULT.length) { 
+      fAddPrevNext(RESULT[i], 13); // добавляем связки prev - next
+      //alert('Подмассив RESULT['+i+'] содержит' + RESULT[i].length + ' точек' );
+      j=0;      
+      while (j<RESULT[i].length) {  
+        x1 = RESULT[i][j].x; 
+        x2 = RESULT[i][j].next.x; 
+        y1 = RESULT[i][j].y; 
+        y2 = RESULT[i][j].next.y;
+        if ( ( Math.abs(x1-x2) < r ) && ( Math.abs(y1-y2) < r ) ) {
+          // если точки "сливатся" в одну - исключаем из подмассива RESULT[i] точку RESULT[i][j]
+          // if (confirm('Совпали RESULT['+i+'] вершина'+j+' ('+  x1 + ' ; ' + y1 + ') и след. (' + x2 + ' ; ' + y2 + ') . Исключить?')) {
+            RESULT[i].splice(j,1);
+          //} else { j++ };
+        } else j++;
+      }
+      // если в фигуре останется меньше 3х точек или ее площадь меньше 0,0001 - убираем фигуру из результата
+      if (RESULT[i].length<3) { 
+        RESULT.splice(i,1) 
+      } else {
+        RESULT[i][0].sq = fpolygonS(RESULT[i].slice(), true);
+        if (RESULT[i][0].sq > 0.0001) i++   //    площадь фигур в RESULT не меньше 0,0001
+          else RESULT.splice(i,1);
+      }
+    } // end of while (i<RESULT.length) { 
+  }  // end of if (RESULT.length>0) {
   fClearSVG(0, document.getElementsByTagName('svg')[1]);
-
-  // объединим, совпадающие точки
-
-  // исключим фигуры с площадью менее 0,0001
-
   RESULT.forEach ( function (p) { drawPath(p, document.querySelector('svg.intersections'), 'red');  } );
 }
 
@@ -515,7 +542,7 @@ document.onkeydown = function checkKeycode(event){   // Input для масси�
 
 document.onmousemove = function(event) {
   var borderRect, indexSvgCircle;
-  mousePoint= {x: event.pageX, y: event.pageY}
+  mousePoint= {x: event.clientX, y: event.clientY}
   // получаем расстояния до container  top, left, right, bottom
   borderRect= document.querySelector('div').getBoundingClientRect();
   // корректируем координаты, чтоб 0,0 был в углу container
@@ -754,12 +781,13 @@ function fCreateTable(polygon,name){
 function fCreateResultTables(){
   // по результрующему массиву RESULT строит таблицы
   var tablesQuantity = RESULT.length;
-  var tableName='', s, headElement;
+  var tableName='', sq;
   if (tablesQuantity) {
     for (var i=0; i<tablesQuantity; i++) {
-      fAddPrevNext(RESULT[i], 13);
-      s=Math.round( fpolygonS(RESULT[i].slice(), true) *100 )/100 ;
-      tableName = 'Результат '+(i+1)+' площадью '+ s+'px^2';
+      // fAddPrevNext(RESULT[i], 13); // к настоящему моменту связки должны быть уже добавлены в fPolygonsOfIntersection
+      // s=Math.round( fpolygonS(RESULT[i].slice(), true) *100 )/100 ;
+      sq = Math.round( RESULT[i][0].sq *100 )/100 ;
+      tableName = 'Результат '+(i+1)+' площадью '+ sq +'px^2';
       fCreateResTable(RESULT[i], tableName);
     }
     resTablesCreatedFlag = true;
