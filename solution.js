@@ -21,12 +21,12 @@ function intersects(fig1, fig2) {
   polygonA.forEach(  
   	function (point, i) { 
   		point.indexSvgCircle = svgElem.children.length;
-  		drawCircle(document.querySelector('svg.base'), point,  5, 'orange'); 
+  		drawCircle(document.querySelector('svg.base'), point,  6, 'orange'); 
   	}  ); 
   polygonB.forEach(  
   	function (point, i) { 
   		point.indexSvgCircle = svgElem.children.length;
-  		drawCircle(document.querySelector('svg.base'), point,  5, 'orange'); 
+  		drawCircle(document.querySelector('svg.base'), point,  6, 'orange'); 
   		point.x+=0.000001; point.y+=0.000001;  // добавляем мизерное значение, чтоб не мучаться с совпадением сторон и вершин многоугольников А и В
   	}  );     
   fSameDirection();
@@ -38,7 +38,8 @@ function intersects(fig1, fig2) {
 //  Cоздаем дополнительные элементы HTML 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
   fHeadCreate('h3','Вычисляем многоугольники, полученные в результате пересечения входных многоугольников А и В');
-  document.getElementsByTagName('h3')[0].style.textAlign = "center";
+  fHeadCreate('h3','Cхема переноса вершин: нажать на вершину(оранжевый кружок) клавишей мыши - переместить вершину - отпустить клавишу мыши.');
+  document.getElementsByTagName('h3')[1].style.cssText=" text-align: center; color:red;";
 
   var printer1 = document.createElement('p');
   printer1.innerHTML = '<a href="https://github.com/Dmitriy-Yarygin/Inters/blob/gh-pages/README.MD"> Инструкции по программе.</a> '; 
@@ -247,7 +248,7 @@ function fRay(Point, Vector, polygon, drawIntersectionsFlag, tolerance){
         else nextVertex = polygon[j+1];
       if (fRayIntersection(Point, Vector,polygon[j], nextVertex, tolerance)){
         intersectionPointsCount++;
-        if (drawIntersectionsFlag) drawCircle(document.querySelector('svg.base'), intersectionPoint,  4, 'blue'); 
+        if (drawIntersectionsFlag) drawCircle(document.querySelector('svg.base'), intersectionPoint,  3, 'blue'); 
         console.log('С лучом найдено '+intersectionPointsCount+' точек пересечений ');
       }   
  } 
@@ -287,7 +288,7 @@ function fPointsOfIntersection(arrayA,arrayB,drawIntersectionsFlag){
   for (var i=0; i<arrayA.length; i++) {
     for (var j=0; j<arrayB.length; j++) {  
       if (fSegmentsIntersection(arrayA[i],arrayA[i].next,arrayB[j],arrayB[j].next)){
-        if (drawIntersectionsFlag) drawCircle(document.querySelector('svg.base'), intersectionPoint,  4, 'red');  
+        if (drawIntersectionsFlag) drawCircle(document.querySelector('svg.base'), intersectionPoint,  3, 'blue');  
         // формируем заготовку для элементов графа - точек intersA[k] - перекрестков, на которых возможен переход с A на обход сторон другого многоугольника B и наоборот
         title='I'+intersectionPointsCount;
         delta = Math.sqrt( Math.pow((arrayA[i].x-intersectionPoint.x),2) + Math.pow((arrayA[i].y-intersectionPoint.y),2));
@@ -578,6 +579,36 @@ document.onmousemove = function(event) {
   }
 }
 
+document.onmousedown = function(event){
+  // если координаты обоих многоугольников введены и лев.клавиша мыши нажата над вершиной одного из многоугольников - тянем вершину за мышью 
+  if ( (count==-1) && (!(movingVertex.isMoving)) ) //если перемещаемых в данный момент точек нет, то проверяем: 
+    fIsVertex(mousePoint);   // мышь над вершиной какого-либо многоугольника? если Да, то movingVertex.isMoving станет true 
+}
+
+document.onmouseup = function(event){
+  // если координаты обоих многоугольников введены и лев.клавиша мыши нажата над вершиной одного из многоугольников - тянем вершину за мышью 
+  if (count==-1) 
+    if (movingVertex.isMoving)  {  //если в настоящий момент какую-то точку уже перемещаем, то при повторном клике - фиксируем ее на рисунке
+      movingVertex.isMoving = false; 
+      if (movingVertex.polygon[0].title[0]=='A') {
+        polygonA[movingVertex.index].x =  mousePoint.x;
+        polygonA[movingVertex.index].y =  mousePoint.y;
+        var table = twoColumnsTable.rows[0].cells[0].children[0];  // меняем значения координат одной из вершин в таблице
+        table.rows[movingVertex.index+1].cells[1].firstElementChild.value = mousePoint.x;  
+        table.rows[movingVertex.index+1].cells[2].firstElementChild.value = mousePoint.y;
+      } else {
+          polygonB[movingVertex.index].x =  mousePoint.x + 0.000001 ;
+          polygonB[movingVertex.index].y =  mousePoint.y + 0.000001 ;
+          var table = twoColumnsTable.rows[0].cells[0].children[1]; // меняем значения координат одной из вершин в таблице
+          table.rows[movingVertex.index+1].cells[1].firstElementChild.value = mousePoint.x;  
+          table.rows[movingVertex.index+1].cells[2].firstElementChild.value = mousePoint.y;  
+      }
+    }  
+    fReDrawPath( svgElem.children[movingVertex.polygon[0].indexSvgPath], movingVertex.polygon);  
+    fSameDirection();
+}
+
+
 document.onclick = function(event) { 
 	var newPoint, indexSvg;	
   // если (еще не введены координаты обоих многоугольников) и (нажаты Shift + лев.клавиша мыши) - записываем координаты вершин многоугольников 
@@ -587,29 +618,8 @@ document.onclick = function(event) {
   		else { newPoint={x: mousePoint.x, y: mousePoint.y, indexSvgCircle: indexSvg}; } 
     polygonB.push(newPoint); 
     console.log(polygonB);
-    drawCircle(document.querySelector('svg.base'), mousePoint,  5, 'orange');
+    drawCircle(document.querySelector('svg.base'), mousePoint,  6, 'orange');
   }  
-  // если координаты обоих многоугольников введены и лев.клавиша мыши нажата над вершиной одного из многоугольников - тянем вершину за мышью 
-  if (count==-1) 
-    if (movingVertex.isMoving)  {  //если в настоящий момент какую-то точку уже перемещаем, то при повторном клике - фиксируем ее на рисунке
-      movingVertex.isMoving = false;  
-      if (movingVertex.polygon[0].title[0]=='A') {
-      	polygonA[movingVertex.index].x =  mousePoint.x;
-      	polygonA[movingVertex.index].y =  mousePoint.y;
-      	var table = twoColumnsTable.rows[0].cells[0].children[0];  // меняем значения координат одной из вершин в таблице
-        table.rows[movingVertex.index+1].cells[1].firstElementChild.value = mousePoint.x;  
-        table.rows[movingVertex.index+1].cells[2].firstElementChild.value = mousePoint.y;
-      } else {
-      		polygonB[movingVertex.index].x =  mousePoint.x + 0.000001 ;
-	        polygonB[movingVertex.index].y =  mousePoint.y + 0.000001 ;
-	        var table = twoColumnsTable.rows[0].cells[0].children[1]; // меняем значения координат одной из вершин в таблице
-        	table.rows[movingVertex.index+1].cells[1].firstElementChild.value = mousePoint.x;  
-        	table.rows[movingVertex.index+1].cells[2].firstElementChild.value = mousePoint.y;
-      }
-	  fReDrawPath( svgElem.children[movingVertex.polygon[0].indexSvgPath], movingVertex.polygon);  
-      fSameDirection();
-      //если перемещаемых в данный момент точек нет, то проверяем: мышь над вершиной какого-либо многоугольника?
-    } else fIsVertex(mousePoint);   // если Да, то movingVertex.isMoving станет true   
 }
 
 document.onchange = function(event) {    
@@ -788,13 +798,16 @@ function fTables(parent){
 function fCreateTable(parent, polygon,name){
   var table = document.createElement('table');
   table.appendChild(document.createElement('tr'));
+
   var ob = document.createElement('th');
   ob.innerHTML = 'Многоугольник '+ name;
-  table.lastElementChild.appendChild(ob);
+  table.firstElementChild.appendChild(ob);
+  ob.colSpan = "3";
   for (var i=0; i<polygon.length; i++) {
     table.appendChild(document.createElement('tr'));
     ob=document.createElement('td'); // в первую ячейку таблицы заносим название вершины A0,A1,A2....B0.B1.B2
     ob.innerHTML = name+i;
+    ob.style.cssText="  text-align: center; width: 3em;";
     table.lastElementChild.appendChild(ob);
     ftdCreate(table, polygon[i].x);
     ftdCreate(table, polygon[i].y);
@@ -818,24 +831,44 @@ function fCreateResultTables(parent){
 }
 
 function fCreateResTable(parent, polygon,name){
+  var myTdStyle = " width: 3em; border: solid lightgray 1.5px;";
   var obTR, table = document.createElement('table');
+  table.style.cssText="  text-align: center;  border-collapse:collapse;";
+  // --------------------------------------------------
   table.appendChild(document.createElement('tr'));
   var ob = document.createElement('th');
   ob.innerHTML = name;
+  ob.colSpan = "3";
+  table.lastElementChild.appendChild(ob);
+  // --------------------------------------------------
+  table.appendChild(document.createElement('tr'));
+  var ob = document.createElement('td');
+  ob.innerHTML = 'Вершина';
+  ob.style.cssText = myTdStyle;
+  table.lastElementChild.appendChild(ob);
+  var ob = document.createElement('td');
+  ob.innerHTML = 'Х';
+  ob.style.cssText = myTdStyle;
+  table.lastElementChild.appendChild(ob);
+  var ob = document.createElement('td');
+  ob.innerHTML = 'Y';
+  ob.style.cssText = myTdStyle;
   table.lastElementChild.appendChild(ob);
   for (var i=0; i<polygon.length; i++) {
+    // --------------------------------------------------
     obTR = document.createElement('tr');
     table.appendChild(obTR);
     ob=document.createElement('td'); // в первую ячейку таблицы заносим название вершины 
     ob.innerHTML = i;
+    ob.style.cssText = myTdStyle;
     obTR.appendChild(ob);
-
     ob=document.createElement('td'); 
     ob.innerHTML = Math.round(polygon[i].x*100)/100;
+    ob.style.cssText = myTdStyle;
     obTR.appendChild(ob);
-
     ob=document.createElement('td'); 
     ob.innerHTML = Math.round(polygon[i].y*100)/100;
+  ob.style.cssText = myTdStyle;
     obTR.appendChild(ob);
   }
   parent.appendChild(table);
@@ -844,6 +877,7 @@ function fCreateResTable(parent, polygon,name){
 function fHeadCreate(headlevel, headText){
       var ob=document.createElement(headlevel);
       ob.innerHTML = headText;
+      ob.style.textAlign = "center";
       document.body.appendChild(ob);
 }      
 
@@ -866,23 +900,6 @@ function fTablesDelete(parent){ // удаляем все таблицы и их 
   }  
 }
 
-// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-// Блок обхода дерева DOM
-// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>   
-/*
-function fShowDOM(){
-  var s = 'Список ' + fObhodDom(svgElem, s); 
-  printer2.innerHTML = s;  
-}
-
-function fObhodDom(domElem, s){
-    for (var i = 0; i < domElem.children.length; i++) {
-        s+='  >  ' + domElem.children[i] ;
-        fObhodDom(domElem.children[i]);
-    } 
-    return s;
-}
-*/
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 // Блок прорисовки svg
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
