@@ -43,14 +43,12 @@ function intersects(fig1, fig2) {
 
   var printer1 = document.createElement('p');
   printer1.innerHTML = '<a href="https://github.com/Dmitriy-Yarygin/Inters/blob/gh-pages/README.MD"> Инструкции по программе.</a> '; 
-  printer1.style.cssText=" position: absolute;left: 50%;top: 50%;\
-                          transform: translateX(-200px) translateY(-250px);"; 
+  printer1.style.cssText=" position: absolute;left: 50%;top: 50%; transform: translateX(-200px) translateY(200px);"; 
   document.body.appendChild(printer1);
 
   var printer2 = document.createElement('p');
   printer2.innerHTML = 'Координаты';
-  printer2.style.cssText=" position: absolute;left: 50%;top: 50%;\
-                          transform: translateX(+50px) translateY(-250px);";
+  printer2.style.cssText=" position: absolute;left: 50%;top: 50%; transform: translateX(+50px) translateY(200px);";
   document.body.appendChild(printer2);
 
   var twoColumnsTable = document.createElement('table');
@@ -58,22 +56,12 @@ function intersects(fig1, fig2) {
   twoColumnsTable.appendChild(element);
   element.appendChild(document.createElement('td'));
   element.appendChild(document.createElement('td'));
-  twoColumnsTable.rows[0].cells[1].style.cssText=" position: absolute;left: 55%;top: 50%;\
-                          transform: translateX(+200px) translateY(-50%);";
+  twoColumnsTable.rows[0].cells[0].style.cssText=" position: absolute; left: 1%; top: 50%; transform: translateY(-50%);";
+  twoColumnsTable.rows[0].cells[1].style.cssText=" position: absolute; left: 55%; top: 50%; transform: translateX(+200px) translateY(-50%);";
   document.body.appendChild(twoColumnsTable);
 
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-function f1() {  
-  if (isPointInsidePolygon(polygonA[0],polygonB)) {alert('А0 внутри В')} else {alert('А0 снаружи В')};
-  if (isPointInsidePolygon(polygonB[0],polygonA)) {alert('B0 внутри A')} else {alert('B0 снаружи A')};
-}
-
-function f4() {  
-  alert('Площадь А равна '+fpolygonS(polygonA.slice(), true) );
-  alert('Площадь В равна '+fpolygonS(polygonB.slice(), true) );  
-}
 
 
 function fpolygonS(polygon, drawFlag) {// разрезает многоугольник на треугольники и вычисляет площадь первоначального многоугольника
@@ -112,7 +100,7 @@ function fpolygonS(polygon, drawFlag) {// разрезает многоугол�
               currentVertex = fNextVertex(pointC);
               nextVertex = fNextVertex(currentVertex);
               do { 
-                if (fSegmentsIntersection(pointA, pointC, currentVertex, nextVertex)) { 
+                if (fSegmentsIntersection(pointA, pointC, currentVertex, nextVertex, 0,1)) { 
                   exitFlag=true; 
                   // alert('Отрезок '+pointA.title+'-'+pointC.title+' пересекся c '+currentVertex.title+'-'+nextVertex.title+'. exitFlag='+exitFlag);
                 }
@@ -177,12 +165,42 @@ function isPointInsidePolygon(point,polygon){ // ВАЖНО! Точка point н
   return true
 }
 
-//  Направление обхода 2х многоугольников отличаются => меняем для меньшего многоугольника
-// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+function fIsSelfIntersection(polygon) { // проверим, имеет ли многоугольник самопересечения?
+  var i=0, j=1;
+  var isSelfIntersectionFlag = false;
+  polygon.push(polygon[0]); // чтобы проверить замыкающую сторону от последней вершины к самой первой.
+  do {
+    do {
+      if (!(i==j)) {
+        isSelfIntersectionFlag = fSegmentsIntersection(polygon[i],polygon[i+1],polygon[j],polygon[j+1], 0+0.000001, 1-0.000001);  
+        // по хорошему еще бы проверить прохождение стороны многоугольника сквозь вершины этого же многоугольника, когда параметры t1 или t2 =0 или =1
+        if (isSelfIntersectionFlag) drawCircle(document.querySelector('svg.base'), intersectionPoint,  5, 'black');  
+      } 
+      j++;
+    } while ( (j<polygon.length-1) && (!(isSelfIntersectionFlag)) )
+    j=0;
+    i++;
+  } while ( (i<polygon.length-1) && (!(isSelfIntersectionFlag)) ); 
+  polygon.pop();
+  return isSelfIntersectionFlag
+}
+
+// ================================================================================================
 function fSameDirection() {   // Направления обхода должно быть по часовой
   if ((polygonA.length<3) || (polygonB.length<3)) return;
   fAddPrevNext(polygonA, 0);
   fAddPrevNext(polygonB, 1);
+  // надо удостовериться, что многоугольники на входе не имеют самопересечений.
+  if (fIsSelfIntersection(polygonA)) {
+    if (!(confirm('Первый многоугольник имеет самопересечения. Это может привести к некорректным результатам работы программы. \
+      Вы можете изменить расположение вершин многоугольника (перемещая их мышкой) так, чтобы самопересечений не было. Продолжить без изменений?') ) ) 
+      return;
+  }  
+  if (fIsSelfIntersection(polygonB)) {
+    if (!(confirm('Второй многоугольник имеет самопересечения. Это может привести к некорректным результатам работы программы. \
+      Вы можете изменить расположение вершин многоугольника (перемещая их мышкой) так, чтобы самопересечений не было. Продолжить без изменений?') ) ) 
+      return;
+  }  
   var i, tempArray=[];
   var Adirection=fDirection(polygonA, false);
   if (Adirection==-1) {  // меняем направление для A
@@ -210,9 +228,8 @@ function fSameDirection() {   // Направления обхода должн�
   fCreateResultTables(twoColumnsTable.rows[0].cells[1]);
 }
 
-// Определяем направление обхода многоугольника - по или против часовой стрелки
-// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-function fDirection(polygon, drawFlag){
+// ================================================================================================
+function fDirection(polygon, drawFlag){ // Определяем направление обхода многоугольника - по или против часовой стрелки
 // Находим правый вектор. Если он, исходя из точки в середине стороны многоугольника, пересекает многоугольник четное кол-во раз - значит обход многоугольника осуществляется против часовой
   if (polygon.length<3) {alert('Невозможно определить направление обхода для фигуры мене чем с 3 вершинами');return}
   var normalVector = fNormalVectorFromVector( fVectorFromPoints( polygon[0], polygon[1]) );  
@@ -287,7 +304,7 @@ function fPointsOfIntersection(arrayA,arrayB,drawIntersectionsFlag){
   // ниже идет перебор сторон многоугольника arrayA для поиска точек пересечений с сторонами многоугольника arrayB 
   for (var i=0; i<arrayA.length; i++) {
     for (var j=0; j<arrayB.length; j++) {  
-      if (fSegmentsIntersection(arrayA[i],arrayA[i].next,arrayB[j],arrayB[j].next)){
+      if (fSegmentsIntersection(arrayA[i],arrayA[i].next,arrayB[j],arrayB[j].next, 0,1)){
         if (drawIntersectionsFlag) drawCircle(document.querySelector('svg.base'), intersectionPoint,  3, 'blue');  
         // формируем заготовку для элементов графа - точек intersA[k] - перекрестков, на которых возможен переход с A на обход сторон другого многоугольника B и наоборот
         title='I'+intersectionPointsCount;
@@ -349,7 +366,6 @@ function fPolygonsOfIntersection(){ // Поиск многоугольников
   fClearSVG(0, document.getElementsByTagName('svg')[1]);
   RESULT.forEach ( function (p) { drawPath(p, document.querySelector('svg.intersections'), 'red');  } );
 }
-
 
 // алгоритм поиска многоугольников-пересечений при старте из A0, находящейся ВНУТРИ второго многоугольника B
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -444,7 +460,7 @@ function fAlgoritmOutside(startPoint){
 }
 
 
-function fSegmentsIntersection(pointA,pointB,pointC,pointD){
+function fSegmentsIntersection(pointA,pointB,pointC,pointD, mayBe0,mayBe1){
   // проверим отрезки на параллельность через определитель матрицы 2х векторов
   var vector1 = fVectorFromPoints(pointA,pointB);
   var vector2 = fVectorFromPoints(pointC,pointD);
@@ -455,7 +471,7 @@ function fSegmentsIntersection(pointA,pointB,pointC,pointD){
     var t2Parametr = ( vector1.p1 * (pointA.y-pointC.y) - vector1.p2 * (pointA.x-pointC.x) ) / opredelitel;
     
     // если прямые пересекаются, а параметры t1 или t2 выходят за рамки [0;1] - ОТРЕЗКИ не пересекаются  
-    if ((tParametr<0) || (tParametr>1) || (t2Parametr<0) || (t2Parametr>1))  return false;
+    if ((tParametr < mayBe0) || (tParametr > mayBe1) || (t2Parametr < mayBe0) || (t2Parametr > mayBe1))  return false;
     
     // если прямые пересекаются и параметры t1 или t2 в пределах (0;1) - вычисляем точку пересечения отрезков  
     intersectionPoint.x = vector1.p1 * tParametr + pointA.x;
@@ -590,20 +606,25 @@ document.onmouseup = function(event){
   if (count==-1) 
     if (movingVertex.isMoving)  {  //если в настоящий момент какую-то точку уже перемещаем, то при повторном клике - фиксируем ее на рисунке
       movingVertex.isMoving = false; 
+      // меняем значения координат одной из вершин
       if (movingVertex.polygon[0].title[0]=='A') {
         polygonA[movingVertex.index].x =  mousePoint.x;
         polygonA[movingVertex.index].y =  mousePoint.y;
-        var table = twoColumnsTable.rows[0].cells[0].children[0];  // меняем значения координат одной из вершин в таблице
-        table.rows[movingVertex.index+1].cells[1].firstElementChild.value = mousePoint.x;  
-        table.rows[movingVertex.index+1].cells[2].firstElementChild.value = mousePoint.y;
+        if ((twoColumnsTable.rows[0].cells[0].firstElementChild)) { // если таблица первичных многоугольников ЕСТЬ, 
+          var table = twoColumnsTable.rows[0].cells[0].children[0];  
+          table.rows[movingVertex.index+1].cells[1].firstElementChild.value = mousePoint.x;  
+          table.rows[movingVertex.index+1].cells[2].firstElementChild.value = mousePoint.y;
+        }  
       } else {
           polygonB[movingVertex.index].x =  mousePoint.x + 0.000001 ;
           polygonB[movingVertex.index].y =  mousePoint.y + 0.000001 ;
-          var table = twoColumnsTable.rows[0].cells[0].children[1]; // меняем значения координат одной из вершин в таблице
-          table.rows[movingVertex.index+1].cells[1].firstElementChild.value = mousePoint.x;  
-          table.rows[movingVertex.index+1].cells[2].firstElementChild.value = mousePoint.y;  
+          if ((twoColumnsTable.rows[0].cells[0].firstElementChild)) { // если таблица первичных многоугольников ЕСТЬ, 
+            var table = twoColumnsTable.rows[0].cells[0].children[1]; 
+            table.rows[movingVertex.index+1].cells[1].firstElementChild.value = mousePoint.x;  
+            table.rows[movingVertex.index+1].cells[2].firstElementChild.value = mousePoint.y;  
+          }  
       }
-    }  
+    } 
     fReDrawPath( svgElem.children[movingVertex.polygon[0].indexSvgPath], movingVertex.polygon);  
     fSameDirection();
 }
@@ -774,12 +795,22 @@ function fTableToArray(table, polygon){  // Переносит первое от
   var qRaws=polygon.length;  // неплохо было бы добавить проверку соотвествия элементов таблицы и многоугольника
   var tableValue;
   for (var i = 0; i < qRaws; i++) {
-    tableValue = Math.round( table.rows[i+1].cells[1].firstElementChild.value *100 )/100;  // если не округлить - потом целые числа не хотят складываться с дробными!!!
+    tableValue = Math.round( table.rows[i+1].cells[1].firstElementChild.value *100 )/100;  
+    if ( (!(isFinite(tableValue))) || (tableValue<0) || (tableValue>400) ) {
+      alert('Внимание! Вы ввели недопустимое значение координаты X. Вводимые в таблице координаты вершин многоугольников А или В должны быть числами в пределах [ 0, 400 ]');
+      table.rows[i+1].cells[1].firstElementChild.value = Math.round( polygon[i].x *100 )/100;   
+      return -1;
+    }
     if ( Math.abs(polygon[i].x-tableValue)>0.000002 ) {
       polygon[i].x = tableValue;
       return i;
     }
-    tableValue = Math.round( table.rows[i+1].cells[2].firstElementChild.value *100 )/100;  // если не округлить - потом целые числа не хотят складываться с дробными!!!
+    tableValue = Math.round( table.rows[i+1].cells[2].firstElementChild.value *100 )/100; 
+    if ( (!(isFinite(tableValue))) || (tableValue<0) || (tableValue>400) ) {
+      alert('Внимание! Вы ввели недопустимое значение координаты Y. Вводимые в таблице координаты вершин многоугольников А или В должны быть числами в пределах [ 0, 400 ]');
+      table.rows[i+1].cells[2].firstElementChild.value = Math.round( polygon[i].y *100 )/100;  
+      return -1;
+    }
     if (Math.abs(polygon[i].y-tableValue)>0.000002) {
       polygon[i].y = tableValue;
       return i;
@@ -797,17 +828,19 @@ function fTables(parent){
 
 function fCreateTable(parent, polygon,name){
   var table = document.createElement('table');
+  table.style.cssText="  text-align: center;  border-collapse:collapse;";
+  // ---------------------------------------------------
   table.appendChild(document.createElement('tr'));
-
   var ob = document.createElement('th');
   ob.innerHTML = 'Многоугольник '+ name;
   table.firstElementChild.appendChild(ob);
   ob.colSpan = "3";
   for (var i=0; i<polygon.length; i++) {
+    // ---------------------------------------------------  
     table.appendChild(document.createElement('tr'));
     ob=document.createElement('td'); // в первую ячейку таблицы заносим название вершины A0,A1,A2....B0.B1.B2
     ob.innerHTML = name+i;
-    ob.style.cssText="  text-align: center; width: 3em;";
+    ob.style.cssText="  text-align: center;  width: 3em; border: solid lightgray 1.5px;";
     table.lastElementChild.appendChild(ob);
     ftdCreate(table, polygon[i].x);
     ftdCreate(table, polygon[i].y);
@@ -882,13 +915,13 @@ function fHeadCreate(headlevel, headText){
 }      
 
 function ftdCreate(table, value){
-      var obTD=document.createElement('td');
-      table.lastElementChild.appendChild(obTD);
-      var obIN=document.createElement('input');
-      obTD.appendChild(obIN);
-      obIN.type="text";  
-      obIN.size=2; 
-      obIN.value = Math.round(value*100)/100;
+  var obTD=document.createElement('td');
+  table.lastElementChild.appendChild(obTD);
+  obTD.style.cssText = " width: 3em; border: solid lightgray 1.5px;";
+  var obIN=document.createElement('input');
+  obTD.appendChild(obIN);
+  obIN.style.cssText = " width: 90%; text-align: center;";
+  obIN.value = Math.round(value*100)/100;
 }      
 
 function fTablesDelete(parent){ // удаляем все таблицы и их заголовки после upTables
