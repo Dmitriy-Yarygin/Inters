@@ -38,18 +38,22 @@ function intersects(fig1, fig2) {
 //  Cоздаем дополнительные элементы HTML 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
   fHeadCreate('h3','Вычисляем многоугольники, полученные в результате пересечения входных многоугольников А и В');
-  fHeadCreate('h3','Cхема переноса вершин: нажать на вершину(оранжевый кружок) клавишей мыши - переместить вершину - отпустить клавишу мыши.');
-  document.getElementsByTagName('h3')[1].style.cssText=" text-align: center; color:red;";
 
   var printer1 = document.createElement('p');
   printer1.innerHTML = '<a href="https://github.com/Dmitriy-Yarygin/Inters/blob/gh-pages/README.MD"> Инструкции по программе.</a> '; 
-  printer1.style.cssText=" position: absolute;left: 50%;top: 50%; transform: translateX(-200px) translateY(200px);"; 
+  printer1.style.cssText=" position: absolute;left: 50%;top: 50%; transform: translateX(-200px) translateY(-240px);"; 
   document.body.appendChild(printer1);
 
   var printer2 = document.createElement('p');
   printer2.innerHTML = 'Координаты';
-  printer2.style.cssText=" position: absolute;left: 50%;top: 50%; transform: translateX(+50px) translateY(200px);";
+  printer2.style.cssText=" position: absolute;left: 50%;top: 50%; transform: translateX(+50px) translateY(-240px);";
   document.body.appendChild(printer2);
+
+  var myMessageBox = document.createElement('p');
+  myMessageBox.innerHTML = 'myMessageBox';
+  myMessageBox.style.cssText=" position: absolute;left: 50%;top: 50%; transform: translateX(-50%) translateY(190px); width: 500px;\
+                   border: solid lightgray 1px; padding:10px; text-align:center; background-color:yellow";
+  document.body.appendChild(myMessageBox);
 
   var twoColumnsTable = document.createElement('table');
   var element = document.createElement('tr');
@@ -190,17 +194,20 @@ function fSameDirection() {   // Направления обхода должн�
   if ((polygonA.length<3) || (polygonB.length<3)) return;
   fAddPrevNext(polygonA, 0);
   fAddPrevNext(polygonB, 1);
+  var myText = '';
+  myMessageBox.style.display = 'none';
   // надо удостовериться, что многоугольники на входе не имеют самопересечений.
-  if (fIsSelfIntersection(polygonA)) {
-    if (!(confirm('Первый многоугольник имеет самопересечения. Это может привести к некорректным результатам работы программы. \
-      Вы можете изменить расположение вершин многоугольника (перемещая их мышкой) так, чтобы самопересечений не было. Продолжить без изменений?') ) ) 
-      return;
-  }  
   if (fIsSelfIntersection(polygonB)) {
-    if (!(confirm('Второй многоугольник имеет самопересечения. Это может привести к некорректным результатам работы программы. \
-      Вы можете изменить расположение вершин многоугольника (перемещая их мышкой) так, чтобы самопересечений не было. Продолжить без изменений?') ) ) 
-      return;
-  }  
+    myText = 'Многоугольник "В" имеет самопересечения. Это может привести к некорректным результатам работы программы. \
+      Вы можете изменить расположение вершин многоугольника (перемещая их мышкой) так, чтобы самопересечений не было.'
+    myMessageBox.style.display = 'block';
+  }  else myMessageBox.innerHTML ='';
+  if (fIsSelfIntersection(polygonA)) {
+    myText = 'Многоугольник "А" имеет самопересечения. Это может привести к некорректным результатам работы программы. \
+      Вы можете изменить расположение вершин многоугольника (перемещая их мышкой) так, чтобы самопересечений не было.'
+    myMessageBox.style.display = 'block';
+  }
+  myMessageBox.innerHTML = myText;
   var i, tempArray=[];
   var Adirection=fDirection(polygonA, false);
   if (Adirection==-1) {  // меняем направление для A
@@ -456,7 +463,7 @@ function fAlgoritmOutside(startPoint){
       currentPoint=fGrafNext(currentPoint, 0);
     }      
   } while (!(currentPoint.title==startPoint.title));
-  if ( !intersA.length && isPointInsidePolygon(polygonB[0],polygonA) ) {alert('B внутри A');  RESULT.push(polygonB); } ;
+  if ( !intersA.length && isPointInsidePolygon(polygonB[0],polygonA) ) { RESULT.push(polygonB) }  //B внутри A
 }
 
 
@@ -506,23 +513,6 @@ function fSTriangle(vector1,vector2){
 
 function fSkalyr(vector1,vector2){
   return vector1.p1*vector2.p1+vector1.p2*vector2.p2;
-}
-
-function fIsVertex(mousePoint){
-	var i, r=7;  
-	for ( i=0; i<polygonA.length; i++) {
-		if ((Math.abs(polygonA[i].x-mousePoint.x) < r) && (Math.abs(polygonA[i].y-mousePoint.y) < r)) {
-			movingVertex = { isMoving: true, polygon: polygonA, index: i} ;
-			return;
-		}		
-	}
-	for ( i=0; i<polygonB.length; i++) {
-     	if ((Math.abs(polygonB[i].x-mousePoint.x) <r) && (Math.abs(polygonB[i].y-mousePoint.y) <r)) {
-    		movingVertex = { isMoving: true, polygon: polygonB, index: i} 
-    		return
-     	}
-    } 
-    movingVertex = { isMoving: false, polygon: null, index: -1}
 }
 
 function fCenterPoint(data){
@@ -590,8 +580,8 @@ document.onmousemove = function(event) {
   // если надо перетащить вершину многоугольника
   if (movingVertex.isMoving) {
   	indexSvgCircle = movingVertex.polygon[movingVertex.index].indexSvgCircle;
-	svgElem.children[indexSvgCircle].setAttribute('cx', mousePoint.x);
-	svgElem.children[indexSvgCircle].setAttribute('cy', mousePoint.y);
+  	svgElem.children[indexSvgCircle].setAttribute('cx', verifyCoordinate(mousePoint.x) );
+  	svgElem.children[indexSvgCircle].setAttribute('cy', verifyCoordinate(mousePoint.y) );
   }
 }
 
@@ -601,45 +591,69 @@ document.onmousedown = function(event){
     fIsVertex(mousePoint);   // мышь над вершиной какого-либо многоугольника? если Да, то movingVertex.isMoving станет true 
 }
 
+function fIsVertex(mousePoint){
+  var i, r=7;  
+  for ( i=0; i<polygonA.length; i++) {
+    if ((Math.abs(polygonA[i].x-mousePoint.x) < r) && (Math.abs(polygonA[i].y-mousePoint.y) < r)) {
+      movingVertex = { isMoving: true, polygon: polygonA, index: i} ;
+      return;
+    }   
+  }
+  for ( i=0; i<polygonB.length; i++) {
+      if ((Math.abs(polygonB[i].x-mousePoint.x) <r) && (Math.abs(polygonB[i].y-mousePoint.y) <r)) {
+        movingVertex = { isMoving: true, polygon: polygonB, index: i} 
+        return
+      }
+    } 
+    movingVertex = { isMoving: false, polygon: null, index: -1}
+}
+
 document.onmouseup = function(event){
   // если координаты обоих многоугольников введены и лев.клавиша мыши нажата над вершиной одного из многоугольников - тянем вершину за мышью 
   if (count==-1) 
     if (movingVertex.isMoving)  {  //если в настоящий момент какую-то точку уже перемещаем, то при повторном клике - фиксируем ее на рисунке
       movingVertex.isMoving = false; 
-      // меняем значения координат одной из вершин
-      if (movingVertex.polygon[0].title[0]=='A') {
-        polygonA[movingVertex.index].x =  mousePoint.x;
-        polygonA[movingVertex.index].y =  mousePoint.y;
-        if ((twoColumnsTable.rows[0].cells[0].firstElementChild)) { // если таблица первичных многоугольников ЕСТЬ, 
-          var table = twoColumnsTable.rows[0].cells[0].children[0];  
-          table.rows[movingVertex.index+1].cells[1].firstElementChild.value = mousePoint.x;  
-          table.rows[movingVertex.index+1].cells[2].firstElementChild.value = mousePoint.y;
-        }  
-      } else {
-          polygonB[movingVertex.index].x =  mousePoint.x + 0.000001 ;
-          polygonB[movingVertex.index].y =  mousePoint.y + 0.000001 ;
-          if ((twoColumnsTable.rows[0].cells[0].firstElementChild)) { // если таблица первичных многоугольников ЕСТЬ, 
-            var table = twoColumnsTable.rows[0].cells[0].children[1]; 
-            table.rows[movingVertex.index+1].cells[1].firstElementChild.value = mousePoint.x;  
-            table.rows[movingVertex.index+1].cells[2].firstElementChild.value = mousePoint.y;  
-          }  
-      }
+      // меняем значения координат одной из вершин в массиве и таблице
+      fVertexFix();
     } 
     fReDrawPath( svgElem.children[movingVertex.polygon[0].indexSvgPath], movingVertex.polygon);  
     fSameDirection();
 }
 
+function fVertexFix(){
+  // после перетаскивания вершины мышкой эта функция проверяет выход за пределы и меняет значения в массиве и таблице
+  var table, polygon = movingVertex.polygon;
+  var validX = verifyCoordinate(mousePoint.x);
+  var validY = verifyCoordinate(mousePoint.y);
+  if (polygon[0].title[0]=='A') { table = twoColumnsTable.rows[0].cells[0].firstElementChild } 
+    else { table = twoColumnsTable.rows[0].cells[0].lastElementChild }  
+  polygon[movingVertex.index].x =  validX ;
+  polygon[movingVertex.index].y =  validY ;
+  if (table) { // если таблица первичных многоугольников ЕСТЬ, 
+    table.rows[movingVertex.index+1].cells[1].firstElementChild.value = validX;  
+    table.rows[movingVertex.index+1].cells[2].firstElementChild.value = validY;  
+  }  
+  if (polygon[0].title[0]=='B') { polygonB[movingVertex.index].x+=0.000001; polygonB[movingVertex.index].x+=0.000001; }
+}  
+
+function verifyCoordinate(coordinate){
+  if (coordinate < 0) return 0
+    else if (coordinate > 400) return 400
+      else return coordinate
+}
 
 document.onclick = function(event) { 
 	var newPoint, indexSvg;	
+  var validX = verifyCoordinate(mousePoint.x);
+  var validY = verifyCoordinate(mousePoint.y);
   // если (еще не введены координаты обоих многоугольников) и (нажаты Shift + лев.клавиша мыши) - записываем координаты вершин многоугольников 
   if ((count!==-1) && (event.shiftKey)) {
   	indexSvg = svgElem.children.length;
-  	if (polygonB.length==0) { newPoint={x: mousePoint.x, y: mousePoint.y, indexSvgCircle: indexSvg, indexSvgPath: null} } 
-  		else { newPoint={x: mousePoint.x, y: mousePoint.y, indexSvgCircle: indexSvg}; } 
+  	if (polygonB.length==0) { newPoint={x: validX, y: validY, indexSvgCircle: indexSvg, indexSvgPath: null} } 
+  		else { newPoint={x: validX, y: validY, indexSvgCircle: indexSvg}; } 
     polygonB.push(newPoint); 
     console.log(polygonB);
-    drawCircle(document.querySelector('svg.base'), mousePoint,  6, 'orange');
+    drawCircle(document.querySelector('svg.base'), {x:validX, y:validY},  6, 'orange');
   }  
 }
 
@@ -797,7 +811,7 @@ function fTableToArray(table, polygon){  // Переносит первое от
   for (var i = 0; i < qRaws; i++) {
     tableValue = Math.round( table.rows[i+1].cells[1].firstElementChild.value *100 )/100;  
     if ( (!(isFinite(tableValue))) || (tableValue<0) || (tableValue>400) ) {
-      alert('Внимание! Вы ввели недопустимое значение координаты X. Вводимые в таблице координаты вершин многоугольников А или В должны быть числами в пределах [ 0, 400 ]');
+      myMessageBox.innerHTML = 'Внимание! Вы ввели недопустимое значение координаты X. Вводимые в таблице координаты вершин многоугольников А или В должны быть числами в пределах [ 0, 400 ]';
       table.rows[i+1].cells[1].firstElementChild.value = Math.round( polygon[i].x *100 )/100;   
       return -1;
     }
@@ -807,7 +821,7 @@ function fTableToArray(table, polygon){  // Переносит первое от
     }
     tableValue = Math.round( table.rows[i+1].cells[2].firstElementChild.value *100 )/100; 
     if ( (!(isFinite(tableValue))) || (tableValue<0) || (tableValue>400) ) {
-      alert('Внимание! Вы ввели недопустимое значение координаты Y. Вводимые в таблице координаты вершин многоугольников А или В должны быть числами в пределах [ 0, 400 ]');
+      myMessageBox.innerHTML = 'Внимание! Вы ввели недопустимое значение координаты Y. Вводимые в таблице координаты вершин многоугольников А или В должны быть числами в пределах [ 0, 400 ]';
       table.rows[i+1].cells[2].firstElementChild.value = Math.round( polygon[i].y *100 )/100;  
       return -1;
     }
@@ -856,7 +870,7 @@ function fCreateResultTables(parent){
     for (var i=0; i<tablesQuantity; i++) {
       // fAddPrevNext(RESULT[i], 13); // к настоящему моменту связки должны быть уже добавлены в fPolygonsOfIntersection
       // s=Math.round( fpolygonS(RESULT[i].slice(), true) *100 )/100 ;
-      sq = Math.round( RESULT[i][0].sq *100 )/100 ;
+      sq = Math.round( RESULT[i][0].sq ) ;
       tableName = 'Результат '+(i+1)+' площадью '+ sq +'px^2';
       fCreateResTable(parent, RESULT[i], tableName);
     }
